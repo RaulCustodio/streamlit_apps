@@ -37,3 +37,7 @@ jobs:
     - name: Test with pytest
       run: |
         pytest
+
+     - name: teste2
+      run: |
+        pip install matplotlib
