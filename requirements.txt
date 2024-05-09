@@ -1,1 +1,1 @@
-https://github.com/RaulCustodio/streamlit_apps.git#matplotlib
+pip install https://github.com/RaulCustodio/streamlit_apps.git#matplotlib
