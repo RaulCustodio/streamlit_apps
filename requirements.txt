@@ -1,0 +1,3 @@
+https://github.com/RaulCustodio/streamlit_apps.git
+
+matplotlib
