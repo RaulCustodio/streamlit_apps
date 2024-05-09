@@ -1,3 +1,2 @@
 matplotlib
 seaborn
-statsmodels.tsa.seasonal
