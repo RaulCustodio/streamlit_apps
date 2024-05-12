@@ -5,3 +5,4 @@ streamlit
 joblib
 matplotlib
 seaborn
+plotly
