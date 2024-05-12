@@ -3,3 +3,4 @@ scikit-learn
 imbalanced-learn
 streamlit
 joblib
+matplotlib
