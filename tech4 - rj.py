@@ -31,8 +31,24 @@ df = df.rename(columns={'Preço - petróleo bruto - Brent (FOB)': 'Brent (F0B)'}
 df['Data'] = pd.to_datetime(df['Data'], origin='1899-12-30', unit='D')
 df['Brent (F0B)'] = df['Brent (F0B)'].str.replace(',', '.')
 df['Brent (F0B)'] = df['Brent (F0B)'].str.replace(',', '.').astype(float)
+df0=df
 
+##Tabela Bolsa de Shangai
 
+dfs1 = pd.read_csv("./techvenv/shanghai.csv", sep=',')
+# Read the Shanghai data
+dfs2 = pd.read_csv("./techvenv/shanghai2.csv", sep=',')
+dfs = pd.concat([dfs1, dfs2], ignore_index=True)
+
+# Convert the 'Data' column to datetime format
+dfs['Data'] = pd.to_datetime(dfs['Data'])
+
+# Replace commas with dots in each of the specified columns
+
+dfs['Último'] = dfs['Último'].str.replace('.', '').str.replace(',', '.').astype(float)
+dfs['Abertura'] = dfs['Abertura'].str.replace('.', '').str.replace(',', '.').astype(float)
+dfs['Máxima'] = dfs['Máxima'].str.replace('.', '').str.replace(',', '.').astype(float)
+dfs['Mínima'] = dfs['Mínima'].str.replace('.', '').str.replace(',', '.').astype(float)
 
 ## Modelo de ML Naive
 
@@ -78,17 +94,20 @@ forecast_prophet.rename(columns={'y_y': 'y'}, inplace=True)
 ## Filtros
 
 with st.sidebar:
-    todos_anos = st.sidebar.checkbox('Dados de todo o período', value = True)
-    if todos_anos:
-         ano = ''
-    else:
-         ano = st.sidebar.slider('Ano', 1987, 2025)
-         df = df[df['Data'].dt.year <= ano]
+    todos_anos = st.sidebar.checkbox('Valor do Barril Brent', value=True)
+    ano = None
+    if not todos_anos:
+        ano = st.sidebar.slider('Ano', 1987, 2025)
 
+    # Create a Streamlit button to toggle visibility of the second line
+    show_shanghai_index = st.checkbox("Índice de Xangai")
 
+if ano is not None:
+    df0 = df[df['Data'].dt.year <= ano]
+    dfs = dfs[dfs['Data'].dt.year <= ano]
 ##Gráficos
 
-figure_grafico_linha = px.line(df, 
+figure_grafico_linha = px.line(df0, 
                                x='Data', 
                                y = 'Brent (F0B)',
                                title='Preço do Barril de Petróleo BRENT')
@@ -108,13 +127,30 @@ fig_naive.update_layout(
     height=500,  # Altura em pixels
 )
 
+# Plot using Plotly
+fig = go.Figure()
+fig.update_layout(
+    width=1000,  # Largura em pixels
+    height=500,  # Altura em pixels
+)
+# Plot 1: Preço do Petróleo Brent
+fig.add_trace(go.Scatter(x=df['Data'], y=df0['Brent (F0B)'], mode='lines', name='Preço do Petróleo', line=dict(color='midnightblue')))
+
+# Plot 2: Índice de Xangai
+if show_shanghai_index:
+    fig.add_trace(go.Scatter(x=dfs['Data'], y=dfs['Último'], mode='markers', name='Índice de Xangai', marker=dict(color='green', size=3), yaxis='y2'))
+
+# Formatação do layout
+fig.update_layout(title='Previsão de Preço do Petróleo e Índice de Xangai', xaxis_title='Data', legend=dict(x=0, y=1.1))
+
+# Se o checkbox for marcado, atualize as configurações do eixo y para o Índice de Xangai
+if show_shanghai_index:
+    fig.update_layout(yaxis=dict(title='Preço do Petróleo (US$/barril)', color='midnightblue'),
+                      yaxis2=dict(title='Índice de Xangai', color='green', overlaying='y', side='right'))
+
 
 # Visualize as previsões
 fig_prophet = model_prophet.plot(forecast_prophet)
-# fig_prophet.update_layout(
-#     width=1000,  # Largura em pixels
-#     height=500,  # Altura em pixels
-# )
 
 ##Visualização streamlit
 
@@ -131,7 +167,17 @@ with aba1:
     with coluna3:
         st.metric('Média',formata_numero(df['Brent (F0B)'].mean(),''))
     # Mostrando o gráfico
-    st.plotly_chart(figure_grafico_linha)
+    st.plotly_chart(fig)
+    
+    if show_shanghai_index:
+        long_text = "A china é o maior comprador de petróleo do mundo e como pode ser visto em 2009 a queda do preço do barril esteve diretamente relacioada a queda da bolsa de Xangai"
+    else:
+        long_text = ''
+
+    with st.container(height=300):
+        st.markdown(long_text)
+
+    st.table(dfs.head())
 
 with aba2:
     st.plotly_chart(fig_naive)
