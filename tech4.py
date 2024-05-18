@@ -17,7 +17,7 @@ import openpyxl
 st.set_page_config(layout= 'wide')
 
 ##Tabelas
-df = pd.read_csv("./techvenv/brentdb.csv", sep=';')
+df = pd.read_csv("brentdb.csv", sep=';')
 df = df.rename(columns={'Preço - petróleo bruto - Brent (FOB)': 'Brent (F0B)'})
 df['Data'] = pd.to_datetime(df['Data'], origin='1899-12-30', unit='D')
 df['Brent (F0B)'] = df['Brent (F0B)'].str.replace(',', '.')
@@ -31,11 +31,11 @@ df0=df
 #df0['MM180'] = df0['Brent (F0B)'].rolling(180).mean().shift() #média móvel
 
 # Caminho do arquivo Excel
-caminho_arquivo = './techvenv/iea.xlsx'
+caminho_arquivo = 'iea.xlsx'
 nome_aba = 'TimeSeries_1971-2022'
 
 # Ler o arquivo Excel e acessar a aba TimeSeries a partir da linha 2
-#dados = pd.read_excel("./techvenv\iea.xlsx", sheet_name='TimeSeries_1971-2022', header=1)
+#dados = pd.read_excel("iea.xlsx", sheet_name='TimeSeries_1971-2022', header=1)
 
 try:
  dados = pd.read_excel(caminho_arquivo, sheet_name=nome_aba, header=1)
