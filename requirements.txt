@@ -12,3 +12,4 @@ numpy
 plotly.express
 plotly.graph_objects
 statsforecast.models
+openpyxl
