@@ -8,8 +8,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from statsforecast import StatsForecast
 from statsforecast.models import Naive, SeasonalNaive, SeasonalWindowAverage
-#from sklearn.metrics import accuracy_score, mean_absolute_error, mean_squared_error
-#from statsmodels.tsa.seasonal import seasonal_decompose
+from sklearn.metrics import accuracy_score, mean_absolute_error, mean_squared_error
+from statsmodels.tsa.seasonal import seasonal_decompose
 #import pickle
 from prophet import Prophet
 import openpyxl
@@ -17,7 +17,7 @@ import openpyxl
 st.set_page_config(layout= 'wide')
 
 ##Tabelas
-df = pd.read_csv("brentdb.csv", sep=';')
+df = pd.read_csv("./techvenv/brentdb.csv", sep=';')
 df = df.rename(columns={'Preço - petróleo bruto - Brent (FOB)': 'Brent (F0B)'})
 df['Data'] = pd.to_datetime(df['Data'], origin='1899-12-30', unit='D')
 df['Brent (F0B)'] = df['Brent (F0B)'].str.replace(',', '.')
@@ -25,7 +25,7 @@ df['Brent (F0B)'] = df['Brent (F0B)'].str.replace(',', '.').astype(float)
 df0=df
 
 # Calcular desvio padrão móvel
-#window = 30  # Janela de 30 dias
+window = 30  # Janela de 30 dias
 #df0['DesvioPadrao'] = df0['Brent (F0B)'].rolling(window=window).std()
 #df0['MM30'] = df0['Brent (F0B)'].rolling(30).mean().shift() #média móvel
 #df0['MM180'] = df0['Brent (F0B)'].rolling(180).mean().shift() #média móvel
@@ -35,7 +35,7 @@ caminho_arquivo = 'iea.xlsx'
 nome_aba = 'TimeSeries_1971-2022'
 
 # Ler o arquivo Excel e acessar a aba TimeSeries a partir da linha 2
-#dados = pd.read_excel("iea.xlsx", sheet_name='TimeSeries_1971-2022', header=1)
+#dados = pd.read_excel("./techvenv\iea.xlsx", sheet_name='TimeSeries_1971-2022', header=1)
 
 try:
  dados = pd.read_excel(caminho_arquivo, sheet_name=nome_aba, header=1)
@@ -104,15 +104,10 @@ def plotagem(dados2):
     return fig
 
 ## Modelo de ML Naive
+df['unique_id'] = 1
 
-treino = df.loc[df['Data']<"2024-01-18"]
-valid = df.loc[(df['Data']>="2024-01-18")]
-valid['unique_id'] = 1
-treino['unique_id'] = 1
-treino.rename(columns={'Data': 'ds'}, inplace=True)
-treino.rename(columns={'Brent (F0B)': 'y'}, inplace=True) # Change the target column name to 'y'
-valid.rename(columns={'Data': 'ds'}, inplace=True)
-valid.rename(columns={'Brent (F0B)': 'y'}, inplace=True) 
+treino = df.loc[df['Data']<"2024-01-18"].rename(columns={'Data': 'ds', 'Brent (F0B)': 'y'})
+valid = df.loc[(df['Data']>="2024-01-18")].rename(columns={'Data': 'ds', 'Brent (F0B)': 'y'})
 
 model = StatsForecast(models=[Naive()],freq='D', n_jobs=-1)
 model.fit(treino)
@@ -120,7 +115,13 @@ model.fit(treino)
 h = valid['ds'].nunique()
 forecast_df = model.predict(h=h, level=[90])
 forecast_df = forecast_df.reset_index().merge(valid, on=['ds', 'unique_id'], how='left')
-forecast_df = pd.DataFrame(data=forecast_df)
+#forecast_df = pd.DataFrame(data=forecast_df)
+
+fig_naive = model.plot(treino.query('ds > "2023-01-18"'), forecast_df, level=['90'], engine='plotly')
+fig_naive.update_layout(
+    width=1000,  # Largura em pixels
+    height=500,  # Altura em pixels
+)
 
 # Modelo Prophet
 model_prophet = Prophet(daily_seasonality=True)  # Pode personalizar os hiperparâmetros conforme necessário
@@ -140,41 +141,31 @@ forecast_prophet2 = forecast_prophet.reset_index().merge(valid, on=['ds', 'uniqu
 forecast_prophet2 = pd.DataFrame(data=forecast_prophet2)
 forecast_prophet2 = forecast_prophet2.dropna()
 
+fig_prophet = model_prophet.plot(forecast_prophet)
+
 ## Filtros
 
 with st.sidebar:
-    #limpar_filtro = st.checkbox("Limpar Filtro")
-    # if limpar_filtro:
-    #     data_inicial_padrao = df['Data'].min()
-    #     data_final_padrao = df['Data'].max()
-    # else:
+ 
     data_inicial_padrao = df['Data'].min()
     data_final_padrao = df['Data'].max()
 
     data_inicial = st.date_input("Data Inicial", value=data_inicial_padrao, min_value=df['Data'].min())
     data_final = st.date_input("Data Final", value=data_final_padrao, max_value=df['Data'].max())
 
-# with st.sidebar:
-#     ano = 2025
-#     ano = st.sidebar.slider('Ano', 1987, 2025)
-
 # Create a Streamlit button to toggle visibility of the second line
 with st.sidebar:
     show_shanghai_index = st.checkbox("Bolsa de Xangai")
 
-
-df['Data'] = pd.to_datetime(df['Data'])
-dfs['Data'] = pd.to_datetime(dfs['Data'])
+df['ds'] = pd.to_datetime(df['Data'])
+dfs['ds'] = pd.to_datetime(dfs['Data'])
 data_inicial = pd.to_datetime(data_inicial)
 data_final = pd.to_datetime(data_final)
 
-#df0 = df[df['Data'].dt.year <= ano]
 df0 = df[(df['Data'] >= data_inicial) & (df['Data'] <= data_final)]
-#dfs = dfs[dfs['Data'].dt.year <= ano]
 dfs = dfs[(dfs['Data'] >= data_inicial) & (dfs['Data'] <= data_final)]
 
 ##Gráficos
-
 
 # Gráfico do Preço do Barril Brent
 fig = go.Figure()
@@ -200,15 +191,6 @@ if show_shanghai_index:
 fig.update_xaxes(showgrid=True, zeroline=True, zerolinewidth=2, zerolinecolor='black')
 fig.update_yaxes(showgrid=True, zeroline=True, zerolinewidth=2, zerolinecolor='black')
 
-# Visualize as previsões
-
-fig_prophet = model_prophet.plot(forecast_prophet)
-
-fig_naive = model.plot(treino.query('ds > "2023-01-18"'), forecast_df, level=[90], engine='plotly')
-fig_naive.update_layout(
-    width=1000,  # Largura em pixels
-    height=500,  # Altura em pixels
-)
 
 ##Visualização streamlit
 
