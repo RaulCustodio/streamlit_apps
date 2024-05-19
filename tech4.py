@@ -23,12 +23,13 @@ df['Data'] = pd.to_datetime(df['Data'], origin='1899-12-30', unit='D')
 df['Brent (F0B)'] = df['Brent (F0B)'].str.replace(',', '.')
 df['Brent (F0B)'] = df['Brent (F0B)'].str.replace(',', '.').astype(float)
 df0=df
+df3=df.set_index('Data')
 
 # Calcular desvio padrão móvel
 window = 30  # Janela de 30 dias
-#df0['DesvioPadrao'] = df0['Brent (F0B)'].rolling(window=window).std()
-#df0['MM30'] = df0['Brent (F0B)'].rolling(30).mean().shift() #média móvel
-#df0['MM180'] = df0['Brent (F0B)'].rolling(180).mean().shift() #média móvel
+df3['DesvioPadrao'] = df3['Brent (F0B)'].rolling(window=window).std()
+df3['MM30'] = df3['Brent (F0B)'].rolling(30).mean().shift() #média móvel
+df3['MM180'] = df3['Brent (F0B)'].rolling(180).mean().shift() #média móvel
 
 # Caminho do arquivo Excel
 caminho_arquivo = 'iea.xlsx'
@@ -109,15 +110,17 @@ df['unique_id'] = 1
 treino = df.loc[df['Data']<"2024-01-18"].rename(columns={'Data': 'ds', 'Brent (F0B)': 'y'})
 valid = df.loc[(df['Data']>="2024-01-18")].rename(columns={'Data': 'ds', 'Brent (F0B)': 'y'})
 
-model = StatsForecast(models=[Naive()],freq='D', n_jobs=-1)
-model.fit(treino)
+
+model_naive = StatsForecast(models=[Naive()],freq='D', n_jobs=-1)
+model_naive.fit(treino)
 
 h = valid['ds'].nunique()
-forecast_df = model.predict(h=h, level=[90])
-forecast_df = forecast_df.reset_index().merge(valid, on=['ds', 'unique_id'], how='left')
+forecast_df_naive = model_naive.predict(h=h, level=[90])
+forecast_df_naive = forecast_df_naive.reset_index().merge(valid, on=['ds', 'unique_id'], how='left')
+forecast_df_naive.dropna(inplace=True)
 #forecast_df = pd.DataFrame(data=forecast_df)
 
-fig_naive = model.plot(treino.query('ds > "2023-01-18"'), forecast_df, level=['90'], engine='plotly')
+fig_naive = model_naive.plot(treino.query('ds > "2023-01-18"'), forecast_df_naive, level=['90'], engine='plotly')
 fig_naive.update_layout(
     width=1000,  # Largura em pixels
     height=500,  # Altura em pixels
@@ -136,12 +139,22 @@ previsao = model_prophet.predict(datas_futuras)
 # Merge dos dataframes de previsão com os valores reais usando a coluna 'ds'
 forecast_prophet = pd.merge(previsao, valid, on='ds', how='left')
 forecast_prophet.rename(columns={'y_y': 'y'}, inplace=True)
-
-forecast_prophet2 = forecast_prophet.reset_index().merge(valid, on=['ds', 'unique_id'], how='left')
-forecast_prophet2 = pd.DataFrame(data=forecast_prophet2)
-forecast_prophet2 = forecast_prophet2.dropna()
-
 fig_prophet = model_prophet.plot(forecast_prophet)
+forecast_prophet = forecast_prophet.dropna()
+
+# Calcular métricas de desempenho
+def calcular_metricas(y_true, y_pred):
+    mae = mean_absolute_error(y_true, y_pred)
+    mse = mean_squared_error(y_true, y_pred)
+    wmape_value = wmape(y_true, y_pred)
+    return mae, mse, wmape_value
+
+# Métricas para o modelo Naive
+mae_naive, mse_naive, wmape_naive = calcular_metricas(forecast_df_naive['y'], forecast_df_naive['Naive'])
+wmape_naive = f"{wmape_naive:.3f}%"
+# Métricas para o modelo Prophet
+mae_prophet, mse_prophet, wmape_prophet = calcular_metricas(forecast_prophet['y'], forecast_prophet['yhat'])
+wmape_prophet = f"{wmape_prophet:.3f}%"
 
 ## Filtros
 
@@ -156,6 +169,9 @@ with st.sidebar:
 # Create a Streamlit button to toggle visibility of the second line
 with st.sidebar:
     show_shanghai_index = st.checkbox("Bolsa de Xangai")
+    show_mm30 = st.checkbox("Média Móvel 30d")
+    show_mm180 = st.checkbox("Média Móvel 180d")
+    show_std = st.checkbox("Desvio Padrão")
 
 df['ds'] = pd.to_datetime(df['Data'])
 dfs['ds'] = pd.to_datetime(dfs['Data'])
@@ -179,7 +195,12 @@ fig.add_trace(go.Scatter(x=df0['Data'], y=df0['Brent (F0B)'], mode='lines', name
 # Plot 2: Índice de Xangai
 if show_shanghai_index:
     fig.add_trace(go.Scatter(x=dfs['Data'], y=dfs['Último'], mode='markers', name='Índice de Xangai', marker=dict(color='green', size=3), yaxis='y2'))
-
+if show_mm30:
+    fig.add_trace(go.Scatter(x=df3.index, y=df3['MM30'], mode='lines', name='MM30', marker=dict(color='orange', size=3), yaxis='y'))
+if show_mm180:
+    fig.add_trace(go.Scatter(x=df3.index, y=df3['MM180'], mode='lines', name='MM180', marker=dict(color='blue', size=3), yaxis='y'))
+if show_std:
+    fig.add_trace(go.Scatter(x=df3.index, y=df3['DesvioPadrao'], mode='lines', name='Desv. Padrão', marker=dict(color='red', size=3), yaxis='y'))    
 # Formatação do layout
 fig.update_layout(title='Preço do Petróleo', xaxis_title='Data', legend=dict(x=0, y=1.1))
 
@@ -195,7 +216,7 @@ fig.update_yaxes(showgrid=True, zeroline=True, zerolinewidth=2, zerolinecolor='b
 ##Visualização streamlit
 
 st.title('ANÁLISE DE PREÇO DO PETRÓLEO')
-aba1, aba2 = st.tabs(['Visão Geral', 'Previsão'])
+aba1, aba2, aba3 = st.tabs(['Visão Geral', 'Previsão Prophet', 'Previsão Naive'])
 
 with aba1:
     coluna1, coluna2, coluna3, coluna4, coluna5 = st.columns(5)
@@ -296,15 +317,26 @@ recuperação econômica em curso.'''
     #st.table(dados.head())
  
 with aba2:
+    coluna1, coluna2, coluna3, coluna4, coluna5 = st.columns(5)
 
-    wmape_value_prophet = wmape(forecast_prophet2['y_y'].values, forecast_prophet2['yhat'].values)
-    formatted_wmape = f"{wmape_value_prophet:.3f}%"
-    st.metric('Wmape:', formatted_wmape)
-    st.plotly_chart(fig_prophet)
-    
-    wmape_value_naive = wmape(forecast_df['y'].values, forecast_df['Naive'].values)
-    formatted_wmape = f"{wmape_value_naive:.3f}%"
-    st.metric('Wmape:', formatted_wmape)
-    st.plotly_chart(fig_naive)
+    with coluna1:
+        st.write("## Modelo Prophet")
+        st.plotly_chart(fig_prophet)
+    with coluna2:    
+        st.write(f"MAE: {mae_prophet:.2f}")
+    with coluna3:    
+        st.write(f"MSE: {mse_prophet:.2f}")
+    with coluna4:    
+        st.write(f"WMAPE: {wmape_prophet:.5}%")
 
-#st.table(treino)
+with aba3:
+    coluna1, coluna2, coluna3, coluna4, coluna5 = st.columns(5)
+    with coluna1:
+        st.write("## Modelo Naive")
+        st.plotly_chart(fig_naive)
+    with coluna2:
+        st.write(f"MAE: {mae_naive:.2f}")
+    with coluna3:
+        st.write(f"MSE: {mse_naive:.2f}")
+    with coluna4:
+        st.write(f"WMAPE: {wmape_naive:.5}%")
