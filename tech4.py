@@ -49,9 +49,9 @@ except Exception as e:
 
 ##Tabela Bolsa de Shangai
 
-dfs1 = pd.read_csv("./techvenv/shanghai.csv", sep=',')
+dfs1 = pd.read_csv("shanghai.csv", sep=',')
 # Read the Shanghai data
-dfs2 = pd.read_csv("./techvenv/shanghai2.csv", sep=',')
+dfs2 = pd.read_csv("shanghai2.csv", sep=',')
 dfs = pd.concat([dfs1, dfs2], ignore_index=True)
 
 # Convertendo a coluna 'Data' para formato datetime
