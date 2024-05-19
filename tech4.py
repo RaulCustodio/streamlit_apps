@@ -17,7 +17,7 @@ import openpyxl
 st.set_page_config(layout= 'wide')
 
 ##Tabelas
-df = pd.read_csv("./techvenv/brentdb.csv", sep=';')
+df = pd.read_csv("brentdb.csv", sep=';')
 df = df.rename(columns={'Preço - petróleo bruto - Brent (FOB)': 'Brent (F0B)'})
 df['Data'] = pd.to_datetime(df['Data'], origin='1899-12-30', unit='D')
 df['Brent (F0B)'] = df['Brent (F0B)'].str.replace(',', '.')
