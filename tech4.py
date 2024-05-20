@@ -311,7 +311,7 @@ equilibrar oferta e demanda. Essas medidas combinadas estão desempenhando um pa
 recuperação econômica em curso.'''
 
 
-    with st.container(height=300):
+    with st.container(height=600):
          st.markdown(long_text)
 
     #st.table(dados.head())
