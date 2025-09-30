@@ -120,7 +120,8 @@ forecast_df_naive = forecast_df_naive.reset_index().merge(valid, on=['ds', 'uniq
 forecast_df_naive.dropna(inplace=True)
 #forecast_df = pd.DataFrame(data=forecast_df)
 
-fig_naive = model_naive.plot(treino.query('ds > "2023-01-18"'), forecast_df_naive, level=['90'], engine='plotly')
+# Plot forecasts without requesting confidence interval columns (some models may not provide them under the expected names)
+fig_naive = model_naive.plot(treino.query('ds > "2023-01-18"'), forecast_df_naive, engine='plotly')
 fig_naive.update_layout(
     width=1000,  # Largura em pixels
     height=500,  # Altura em pixels
